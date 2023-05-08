@@ -7,7 +7,8 @@ import pathlib
 import cv2
 import av
 import joblib
-
+from matplotlib import pyplot as plt
+from matplotlib import animation
 
 @dataclass
 class BlinkEvent:
@@ -207,3 +208,34 @@ def get_video_frames(recording_path: pathlib.Path):
     right_eye_images = all_frames[:, :, 192:]
 
     return left_eye_images, right_eye_images
+
+def show_video(
+        left_eye_images: np.ndarray,
+        right_eye_images: np.ndarray,
+        indices: np.ndarray=None
+    ):
+
+    fig, axs = plt.subplots(1, 1)
+    fig.set_size_inches(8, 6)
+
+    eye_images = np.concatenate((left_eye_images, right_eye_images), axis=2)
+
+    if indices is not None:
+        eye_images[np.where(indices==1)[0], 29:35, 61:67] = 255
+
+    im0 = axs.imshow(eye_images[0, :, :], cmap='gray')
+    axs.axis("off")
+
+    plt.close()
+
+    def init():
+        im0.set_data(eye_images[0, :, :])
+
+    def animate(frame):
+        im0.set_data(eye_images[frame, :, :])
+
+        return im0
+
+    anim = animation.FuncAnimation(fig, animate, init_func=init, frames=eye_images.shape[0], interval=5)
+
+    return anim
