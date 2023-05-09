@@ -10,6 +10,7 @@ import joblib
 from matplotlib import pyplot as plt
 from matplotlib import animation
 
+
 @dataclass
 class BlinkEvent:
     start_time: int = None
@@ -209,11 +210,12 @@ def get_video_frames(recording_path: pathlib.Path):
 
     return left_eye_images, right_eye_images
 
+
 def show_video(
-        left_eye_images: np.ndarray,
-        right_eye_images: np.ndarray,
-        indices: np.ndarray=None
-    ):
+    left_eye_images: np.ndarray,
+    right_eye_images: np.ndarray,
+    indices: np.ndarray = None,
+):
 
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8, 6)
@@ -221,9 +223,9 @@ def show_video(
     eye_images = np.concatenate((left_eye_images, right_eye_images), axis=2)
 
     if indices is not None:
-        eye_images[np.where(indices==1)[0], 29:35, 61:67] = 255
+        eye_images[np.where(indices == 1)[0], 29:35, 61:67] = 255
 
-    im0 = axs.imshow(eye_images[0, :, :], cmap='gray')
+    im0 = axs.imshow(eye_images[0, :, :], cmap="gray")
     axs.axis("off")
 
     plt.close()
@@ -236,6 +238,23 @@ def show_video(
 
         return im0
 
-    anim = animation.FuncAnimation(fig, animate, init_func=init, frames=eye_images.shape[0], interval=5)
+    anim = animation.FuncAnimation(
+        fig, animate, init_func=init, frames=eye_images.shape[0], interval=5
+    )
 
     return anim
+
+
+def get_recording_family(recording):
+
+    is_neon = (recording.data_format_version or "").startswith("2.")
+    is_pi = (recording.data_format_version or "1.").startswith("1.")
+
+    if is_neon:
+        is_neon = True
+    elif is_pi:
+        is_neon = False
+    else:
+        raise ValueError("Unknown recording family")
+
+    return is_neon
