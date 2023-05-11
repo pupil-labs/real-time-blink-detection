@@ -144,13 +144,19 @@ def get_recording_family(recording_path: pathlib.Path):
     return rec.family == "neon"
 
 
-def get_classifier(is_neon: bool):
+def get_clf_path(is_neon: bool):
     """Returns the path to the classifier."""
-
     if is_neon:
         clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb_neon.sav"
     else:
         clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb.sav"
+
+    return clf_path
+
+
+def get_classifier(is_neon: bool):
+    """Returns the path to the classifier."""
+    clf_path = get_clf_path(is_neon)
 
     clf = joblib.load(str(clf_path))
 
