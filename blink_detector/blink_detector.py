@@ -54,6 +54,7 @@ def blink_detection_pipeline(
     blink_events = extract_blink_events(x, pp_params)
     return blink_events
 
+
 def cv2_calcOpticalFlowPyrLK(
     img_prev: np.ndarray,
     img_curr: np.ndarray,

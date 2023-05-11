@@ -292,3 +292,18 @@ def video_steam(device, is_neon: bool):
             )
 
         yield left_images, right_images, frame_datetime
+
+
+def video_steam(device, is_neon: bool):
+    while True:
+        current_frame, frame_datetime = device.receive_eyes_video_frame()
+
+        left_images = current_frame[:, :192, 0]
+        right_images = current_frame[:, 192:, 0]
+
+        preprocessed_images = preprocess_frames(left_images, right_images, is_neon)
+
+        left_images = preprocessed_images[0][0]
+        right_images = preprocessed_images[0][1]
+
+        yield left_images, right_images, frame_datetime
