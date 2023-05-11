@@ -187,7 +187,7 @@ def preprocess_frames(
         [preprocessor(right_frame) for right_frame in right_eye_images]
     )
 
-    return left_eye_images, right_eye_images
+    yield (left_eye_images, right_eye_images)
 
 
 def get_timestamps(recording_path: pathlib.Path):
@@ -217,7 +217,7 @@ def get_video_frames(recording_path: pathlib.Path):
     return left_eye_images, right_eye_images
 
 
-def show_video(
+def generate_animation(
     left_eye_images: np.ndarray,
     right_eye_images: np.ndarray,
     indices: np.ndarray = None,
@@ -264,3 +264,31 @@ def get_recording_family(recording):
         raise ValueError("Unknown recording family")
 
     return is_neon
+
+
+def video_steam(device, is_neon: bool):
+    while True:
+        bgr_pixels, frame_datetime = device.receive_eyes_video_frame()
+
+        if is_neon:
+            left_images = cv2.resize(
+                bgr_pixels[:, :192, 0], (64, 64), interpolation=cv2.INTER_AREA
+            )
+            right_images = cv2.resize(
+                bgr_pixels[:, 192:, 0], (64, 64), interpolation=cv2.INTER_AREA
+            )
+        else:
+            left_images = cv2.rotate(
+                cv2.resize(
+                    bgr_pixels[:, :192, 0], (64, 64), interpolation=cv2.INTER_AREA
+                ),
+                cv2.ROTATE_90_COUNTERCLOCKWISE,
+            )
+            right_images = cv2.rotate(
+                cv2.resize(
+                    bgr_pixels[:, 192:, 0], (64, 64), interpolation=cv2.INTER_AREA
+                ),
+                cv2.ROTATE_90_COUNTERCLOCKWISE,
+            )
+
+        yield left_images, right_images, frame_datetime
