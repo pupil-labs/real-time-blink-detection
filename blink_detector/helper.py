@@ -77,6 +77,17 @@ class PPParams:
     proba_offset_threshold: float = 0.25
 
 
+def process_recording(recording_path: pathlib.Path, is_neon: bool = False):
+    left_images, right_images = get_video_frames(recording_path)
+
+    timestamps = get_timestamps(recording_path)
+
+    left_images = np.array(list(preprocess_frames(left_images, is_neon)))
+    right_images = np.array(list(preprocess_frames(right_images, is_neon)))
+
+    return left_images, right_images, timestamps
+
+
 def create_grid(img_shape: T.Tuple[int, int], grid_size: int) -> np.ndarray:
     """Creates a regular grid and returns grid coordinates.
 
@@ -147,7 +158,7 @@ def get_recording_family(recording_path: pathlib.Path):
 def get_clf_path(is_neon: bool):
     """Returns the path to the classifier."""
     if is_neon:
-        clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb_neon.sav"
+        clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb_neon_171.sav"
     else:
         clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb.sav"
 
@@ -163,31 +174,39 @@ def get_classifier(is_neon: bool):
     return clf
 
 
+import numpy as np
+
+
 def preprocess_frames(
-    left_eye_images: np.ndarray, right_eye_images: np.ndarray, is_neon: bool
+    eye_images: np.ndarray,
+    is_neon: bool = True,
 ):
     """Preprocesses frames from left and right eye depending on the type of recording type (Neon or Invisible)."""
 
+    if eye_images.ndim == 2:
+        eye_images = np.expand_dims(eye_images, axis=0)
+
     if is_neon:
-        preprocessor = lambda frame: cv2.resize(
-            frame, (64, 64), interpolation=cv2.INTER_AREA
+        return np.squeeze(
+            np.array(
+                [
+                    cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA)
+                    for frame in eye_images
+                ]
+            )
         )
-
     else:
-        preprocessor = lambda frame: cv2.rotate(
-            cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA),
-            cv2.ROTATE_90_COUNTERCLOCKWISE,
+        return np.squeeze(
+            np.array(
+                [
+                    cv2.rotate(
+                        cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA),
+                        cv2.ROTATE_90_COUNTERCLOCKWISE,
+                    )
+                    for frame in eye_images
+                ]
+            )
         )
-
-    left_eye_images = np.array(
-        [preprocessor(left_frame) for left_frame in left_eye_images]
-    )
-
-    right_eye_images = np.array(
-        [preprocessor(right_frame) for right_frame in right_eye_images]
-    )
-
-    yield (left_eye_images, right_eye_images)
 
 
 def get_timestamps(recording_path: pathlib.Path):
@@ -197,12 +216,10 @@ def get_timestamps(recording_path: pathlib.Path):
 
 
 def get_video_frames(recording_path: pathlib.Path):
-
     container = av.open(str(recording_path / "Neon Sensor Module v1 ps1.mp4"))
     all_frames = []
 
     for frame in container.decode(video=0):
-
         y_plane = frame.planes[0]
         gray_data = np.frombuffer(y_plane, np.uint8)
         img_np = gray_data.reshape(y_plane.height, y_plane.line_size, 1)
@@ -222,7 +239,6 @@ def generate_animation(
     right_eye_images: np.ndarray,
     indices: np.ndarray = None,
 ):
-
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8, 6)
 
@@ -252,7 +268,6 @@ def generate_animation(
 
 
 def get_recording_family(recording):
-
     is_neon = (recording.data_format_version or "").startswith("2.")
     is_pi = (recording.data_format_version or "1.").startswith("1.")
 
@@ -266,44 +281,11 @@ def get_recording_family(recording):
     return is_neon
 
 
-def video_steam(device, is_neon: bool):
+def video_stream(device, is_neon: bool = False):
     while True:
         bgr_pixels, frame_datetime = device.receive_eyes_video_frame()
 
-        if is_neon:
-            left_images = cv2.resize(
-                bgr_pixels[:, :192, 0], (64, 64), interpolation=cv2.INTER_AREA
-            )
-            right_images = cv2.resize(
-                bgr_pixels[:, 192:, 0], (64, 64), interpolation=cv2.INTER_AREA
-            )
-        else:
-            left_images = cv2.rotate(
-                cv2.resize(
-                    bgr_pixels[:, :192, 0], (64, 64), interpolation=cv2.INTER_AREA
-                ),
-                cv2.ROTATE_90_COUNTERCLOCKWISE,
-            )
-            right_images = cv2.rotate(
-                cv2.resize(
-                    bgr_pixels[:, 192:, 0], (64, 64), interpolation=cv2.INTER_AREA
-                ),
-                cv2.ROTATE_90_COUNTERCLOCKWISE,
-            )
-
-        yield left_images, right_images, frame_datetime
-
-
-def video_steam(device, is_neon: bool):
-    while True:
-        current_frame, frame_datetime = device.receive_eyes_video_frame()
-
-        left_images = current_frame[:, :192, 0]
-        right_images = current_frame[:, 192:, 0]
-
-        preprocessed_images = preprocess_frames(left_images, right_images, is_neon)
-
-        left_images = preprocessed_images[0][0]
-        right_images = preprocessed_images[0][1]
+        left_images = preprocess_frames(bgr_pixels[:, :192, 0], is_neon=is_neon)
+        right_images = preprocess_frames(bgr_pixels[:, 192:, 0], is_neon=is_neon)
 
         yield left_images, right_images, frame_datetime
