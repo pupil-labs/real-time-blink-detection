@@ -79,6 +79,8 @@ class PPParams:
 
 
 def process_recording(recording_path: pathlib.Path, is_neon: bool = False):
+    recording_path = pathlib.Path(recording_path)
+
     left_images, right_images = get_video_frames(recording_path)
 
     timestamps = get_timestamps(recording_path)
@@ -298,3 +300,74 @@ def video_stream(device, is_neon: bool = False):
         right_images = preprocess_frames(bgr_pixels[:, 192:, 0], is_neon=is_neon)
 
         yield left_images, right_images, frame_datetime
+
+
+from matplotlib.patches import Rectangle
+import matplotlib.pyplot as plt
+import pathlib
+import seaborn as sns
+import numpy as np
+
+
+def create_patch(ax, i, start, end, y, color):
+    height = 0.5
+    patch = Rectangle((start, y), end - start, height, color=color)
+    ax.add_patch(patch)
+
+    ax.text(
+        start + (end - start) / 2,
+        y + height / 2,
+        str(i + 1),
+        horizontalalignment="center",
+        verticalalignment="center",
+        fontsize=10,
+        color="white",
+        clip_on=True,
+    )
+
+
+def render_event_array(ax, blink_on_idx, blink_off_idx, y, color):
+    for i in range(len(blink_on_idx)):
+        start = blink_on_idx[i] - blink_on_idx[0]
+        end = blink_off_idx[i] - blink_on_idx[0]
+        create_patch(ax, i, start, end, y, color)
+
+
+def adjust_axis(ax, start, end):
+    ax.xaxis.set_visible(True)
+    ax.yaxis.set_visible(False)
+    plt.subplots_adjust(hspace=0.6)
+    ax.set_xticks(np.arange(start, end, 5))
+    ax.set_xticklabels(np.arange(start, end, 5).astype(int))
+
+
+def create_subplot(ax, on_idx, off_idx, start, end):
+    render_event_array(ax, on_idx, off_idx, 0.2, color=[0.2, 0.8, 0.4])
+    ax.set_xlim(start, end)
+    adjust_axis(ax, start, end)
+
+
+def visualize_blink_events(recording_path, blink_events, subplot_duration=20):
+    sns.set()
+    ts = get_timestamps(pathlib.Path(recording_path))
+
+    on_idx = [(blink_event.start_time - ts[0]) / 1e9 for blink_event in blink_events]
+    off_idx = [(blink_event.end_time - ts[0]) / 1e9 for blink_event in blink_events]
+
+    total_duration = np.ceil(len(ts) / 200)
+    subplot_duration = subplot_duration + 0.001
+    num_subplots = int(np.ceil(total_duration / subplot_duration))
+
+    f, ax = plt.subplots(num_subplots, 1)
+    f.set_size_inches(20, 20 * num_subplots / 20)
+
+    time_intervals = [
+        (i * subplot_duration, (i + 1) * subplot_duration) for i in range(num_subplots)
+    ]
+
+    for i, (start, end) in enumerate(time_intervals):
+        create_subplot(ax[i], on_idx, off_idx, start, end)
+
+    ax[-1].set_xlabel("Time since start of recording [in s]")
+    ax[0].set_title("Blink event visualization", fontsize=15, fontweight="bold")
+    plt.show()

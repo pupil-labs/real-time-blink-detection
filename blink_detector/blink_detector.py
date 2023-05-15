@@ -72,54 +72,6 @@ def blink_detection_pipeline(recording_path: Path, is_neon: bool) -> T.List:
     return blink_events
 
 
-# import joblib
-
-
-# def blink_detection_pipeline(
-#     eye_left_images, eye_right_images, timestamps: T.List, clf_path: Path
-# ) -> T.List:
-#     """Pipeline for blink detection.
-
-#     Args:
-#     -------
-#     eye_left_images : list
-#         List of left eye images.
-#     eye_right_images : list
-#         List of right eye images.
-#     timestamps : list
-#         List of timestamps.
-#     clf_path : str
-#         Path to the classifier object.
-
-#     Returns:
-#     -------
-#     list
-#         List of blink events.
-#     """
-
-#     # get default optical flow parameters
-#     of_params = OfParams()
-
-#     # get default post processing parameters
-#     pp_params = PPParams()
-
-#     grid = create_grid(of_params.img_shape, of_params.grid_size)
-
-#     # load classifier
-#     clf = joblib.load(str(clf_path))
-
-#     images_timestamps = zip(zip(eye_left_images, eye_right_images), timestamps)
-
-#     x = calculate_optical_flow(images_timestamps, of_params, grid)
-#     x = predict_class_probas(x, clf, of_params)
-#     x = smooth_probas(x, pp_params)
-#     x = threshold_probas(x, pp_params)
-#     x = compile_into_events(x)
-#     x = filter_events(x)
-#     blink_events = extract_blink_events(x, pp_params)
-#     return blink_events
-
-
 def cv2_calcOpticalFlowPyrLK(
     img_prev: np.ndarray,
     img_curr: np.ndarray,
