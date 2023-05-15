@@ -6,10 +6,11 @@ from itertools import tee
 import pathlib
 import cv2
 import av
-import joblib
+from xgboost import XGBClassifier
 from matplotlib import pyplot as plt
 from matplotlib import animation
-from xgboost import XGBClassifier
+from matplotlib.patches import Rectangle
+import seaborn as sns
 
 
 @dataclass
@@ -302,13 +303,6 @@ def video_stream(device, is_neon: bool = False):
         yield left_images, right_images, frame_datetime
 
 
-from matplotlib.patches import Rectangle
-import matplotlib.pyplot as plt
-import pathlib
-import seaborn as sns
-import numpy as np
-
-
 def create_patch(ax, i, start, end, y, color):
     height = 0.5
     patch = Rectangle((start, y), end - start, height, color=color)
@@ -326,37 +320,56 @@ def create_patch(ax, i, start, end, y, color):
     )
 
 
-def render_event_array(ax, blink_on_idx, blink_off_idx, y, color):
-    for i in range(len(blink_on_idx)):
-        start = blink_on_idx[i] - blink_on_idx[0]
-        end = blink_off_idx[i] - blink_on_idx[0]
+def render_event_array(ax, start_times, end_times, y, color):
+    for i in range(len(start_times)):
+        start = start_times[i] - start_times[0]
+        end = end_times[i] - start_times[0]
         create_patch(ax, i, start, end, y, color)
 
 
 def adjust_axis(ax, start, end):
     ax.xaxis.set_visible(True)
     ax.yaxis.set_visible(False)
-    plt.subplots_adjust(hspace=0.6)
+    plt.subplots_adjust(hspace=0.7)
     ax.set_xticks(np.arange(start, end, 5))
     ax.set_xticklabels(np.arange(start, end, 5).astype(int))
 
 
-def create_subplot(ax, on_idx, off_idx, start, end):
-    render_event_array(ax, on_idx, off_idx, 0.2, color=[0.2, 0.8, 0.4])
+def create_subplot(ax, start_times, end_times, start, end):
+    render_event_array(ax, start_times, end_times, 0.2, color=[0.2, 0.8, 0.4])
     ax.set_xlim(start, end)
     adjust_axis(ax, start, end)
 
 
-def visualize_blink_events(recording_path, blink_events, subplot_duration=20):
+def visualize_blink_events(
+    recording_path, blink_events, max_duration, subplot_duration=20
+):
+    """Visualize blink events in a recording, with each subplot showing a 20 second window per default (can be adjusted).
+
+    Parameters
+    ----------
+    recording_path : pathlib.Path
+        Path to recording
+    blink_events : list
+        List of blink events
+    subplot_duration : float
+        Duration of each subplot in seconds
+    """
+
     sns.set()
     ts = get_timestamps(pathlib.Path(recording_path))
 
-    on_idx = [(blink_event.start_time - ts[0]) / 1e9 for blink_event in blink_events]
-    off_idx = [(blink_event.end_time - ts[0]) / 1e9 for blink_event in blink_events]
+    start_times = [
+        (blink_event.start_time - ts[0]) / 1e9 for blink_event in blink_events
+    ]
+    end_times = [(blink_event.end_time - ts[0]) / 1e9 for blink_event in blink_events]
 
-    total_duration = np.ceil(len(ts) / 200)
+    recording_duration = np.ceil(len(ts) / 200)
+    # find which is smaller: the recording duration or the max_duration
+    recording_duration = min(recording_duration, max_duration)
+
     subplot_duration = subplot_duration + 0.001
-    num_subplots = int(np.ceil(total_duration / subplot_duration))
+    num_subplots = int(np.ceil(recording_duration / subplot_duration))
 
     f, ax = plt.subplots(num_subplots, 1)
     f.set_size_inches(20, 20 * num_subplots / 20)
@@ -365,9 +378,24 @@ def visualize_blink_events(recording_path, blink_events, subplot_duration=20):
         (i * subplot_duration, (i + 1) * subplot_duration) for i in range(num_subplots)
     ]
 
-    for i, (start, end) in enumerate(time_intervals):
-        create_subplot(ax[i], on_idx, off_idx, start, end)
+    for i, (start_of_interval, end_of_interval) in enumerate(time_intervals):
+        create_subplot(
+            ax[i], start_times, end_times, start_of_interval, end_of_interval
+        )
 
-    ax[-1].set_xlabel("Time since start of recording [in s]")
-    ax[0].set_title("Blink event visualization", fontsize=15, fontweight="bold")
+    end_of_recording = (ts[-1] - ts[0]) / 1e9
+    ax[-1].axvline(x=end_of_recording, color="black")
+    # write the end of the recording
+    ax[-1].text(
+        end_of_recording + 0.1,
+        0.5,
+        "End of recording",
+        horizontalalignment="left",
+        verticalalignment="center",
+        fontsize=10,
+        color="black",
+        clip_on=True,
+    )
+
+    ax[-1].set_xlabel("Elapsed time since start of recording [in s]")
     plt.show()
