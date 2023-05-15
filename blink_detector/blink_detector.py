@@ -3,16 +3,27 @@ from itertools import groupby, tee
 from pathlib import Path
 
 import cv2
-import joblib
 import numpy as np
 from more_itertools import convolve, windowed
 from xgboost import XGBClassifier
-from .helper import BlinkEvent, OfParams, PPParams, create_grid, pad_beginning, pairwise
+from .helper import (
+    BlinkEvent,
+    OfParams,
+    PPParams,
+    create_grid,
+    pad_beginning,
+    pairwise,
+    get_classifier,
+    get_clf_path,
+)
 
 
-def blink_detection_pipeline(
-    eye_left_images, eye_right_images, timestamps: T.List, clf_path: Path
-) -> T.List:
+# clf_path = Path(__file__).resolve().parent / "weights/xgb_neon.json"
+
+from blink_detector.helper import process_recording
+
+
+def blink_detection_pipeline(recording_path: Path, is_neon: bool) -> T.List:
     """Pipeline for blink detection.
 
     Args:
@@ -32,6 +43,10 @@ def blink_detection_pipeline(
         List of blink events.
     """
 
+    left_eye_images, right_eye_images, timestamps = process_recording(
+        recording_path, is_neon=is_neon
+    )
+
     # get default optical flow parameters
     of_params = OfParams()
 
@@ -41,9 +56,10 @@ def blink_detection_pipeline(
     grid = create_grid(of_params.img_shape, of_params.grid_size)
 
     # load classifier
-    clf = joblib.load(str(clf_path))
+    clf_path = get_clf_path(is_neon=True)
+    clf = get_classifier(clf_path)
 
-    images_timestamps = zip(zip(eye_left_images, eye_right_images), timestamps)
+    images_timestamps = zip(zip(left_eye_images, right_eye_images), timestamps)
 
     x = calculate_optical_flow(images_timestamps, of_params, grid)
     x = predict_class_probas(x, clf, of_params)
@@ -52,7 +68,56 @@ def blink_detection_pipeline(
     x = compile_into_events(x)
     x = filter_events(x)
     blink_events = extract_blink_events(x, pp_params)
+
     return blink_events
+
+
+# import joblib
+
+
+# def blink_detection_pipeline(
+#     eye_left_images, eye_right_images, timestamps: T.List, clf_path: Path
+# ) -> T.List:
+#     """Pipeline for blink detection.
+
+#     Args:
+#     -------
+#     eye_left_images : list
+#         List of left eye images.
+#     eye_right_images : list
+#         List of right eye images.
+#     timestamps : list
+#         List of timestamps.
+#     clf_path : str
+#         Path to the classifier object.
+
+#     Returns:
+#     -------
+#     list
+#         List of blink events.
+#     """
+
+#     # get default optical flow parameters
+#     of_params = OfParams()
+
+#     # get default post processing parameters
+#     pp_params = PPParams()
+
+#     grid = create_grid(of_params.img_shape, of_params.grid_size)
+
+#     # load classifier
+#     clf = joblib.load(str(clf_path))
+
+#     images_timestamps = zip(zip(eye_left_images, eye_right_images), timestamps)
+
+#     x = calculate_optical_flow(images_timestamps, of_params, grid)
+#     x = predict_class_probas(x, clf, of_params)
+#     x = smooth_probas(x, pp_params)
+#     x = threshold_probas(x, pp_params)
+#     x = compile_into_events(x)
+#     x = filter_events(x)
+#     blink_events = extract_blink_events(x, pp_params)
+#     return blink_events
 
 
 def cv2_calcOpticalFlowPyrLK(

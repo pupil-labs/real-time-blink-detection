@@ -9,6 +9,7 @@ import av
 import joblib
 from matplotlib import pyplot as plt
 from matplotlib import animation
+from xgboost import XGBClassifier
 
 
 @dataclass
@@ -158,18 +159,26 @@ def get_recording_family(recording_path: pathlib.Path):
 def get_clf_path(is_neon: bool):
     """Returns the path to the classifier."""
     if is_neon:
-        clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb_neon_171.sav"
+        clf_path = (
+            pathlib.Path(__file__).resolve().parent
+            / "weights/xgb_neon_151_savedwith171.json"
+        )
     else:
-        clf_path = pathlib.Path(__file__).resolve().parent / "weights/xgb.sav"
+        clf_path = (
+            pathlib.Path(__file__).resolve().parent
+            / "weights/xgb_151_savedwith171.json"
+        )
 
     return clf_path
 
 
 def get_classifier(is_neon: bool):
     """Returns the path to the classifier."""
+
     clf_path = get_clf_path(is_neon)
 
-    clf = joblib.load(str(clf_path))
+    clf = XGBClassifier()
+    clf.load_model(clf_path)
 
     return clf
 
