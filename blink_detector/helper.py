@@ -15,9 +15,30 @@ import seaborn as sns
 
 @dataclass
 class BlinkEvent:
+    """Blink event.
+
+    Attributes:
+    -------
+    start_time : int
+        Start time of the blink event (Unix timestamps in nanoseconds).
+    end_time : int
+        End time of the blink event (Unix timestamps in nanoseconds).
+    label : str
+        Label of the blink event.
+    blink_duration_s : float
+        Duration of the blink event (in seconds).
+    eyelid_closing_duration_s : float
+        Duration of the eyelid closing phase (in seconds).
+    eyelid_opening_duration_s : float
+        Duration of the eyelid opening phase (in seconds).
+    """
+
     start_time: int = None
     end_time: int = None
     label: str = None
+    blink_duration_s: float = None
+    eyelid_closing_duration_s: float = None
+    eyelid_opening_duration_s: float = None
 
 
 @dataclass(unsafe_hash=True, order=True)
@@ -82,9 +103,10 @@ class PPParams:
 def process_recording(recording_path: pathlib.Path, is_neon: bool = False):
     recording_path = pathlib.Path(recording_path)
 
-    left_images, right_images = get_video_frames(recording_path)
-
-    timestamps = get_timestamps(recording_path)
+    # get_video_frames_and_timestamps
+    left_images, right_images, timestamps = get_video_frames_and_timestamps(
+        recording_path=recording_path, is_neon=is_neon
+    )
 
     left_images = np.array(list(preprocess_frames(left_images, is_neon)))
     right_images = np.array(list(preprocess_frames(right_images, is_neon)))
@@ -221,62 +243,32 @@ def preprocess_frames(
         )
 
 
-def get_timestamps(recording_path: pathlib.Path):
-    return np.fromfile(
-        recording_path / "Neon Sensor Module v1 ps1.time", dtype=np.int64
-    )
+def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool):
+    if is_neon:
+        container = av.open(str(recording_path / "Neon Sensor Module v1 ps1.mp4"))
+        all_frames = []
 
+        for frame in container.decode(video=0):
+            y_plane = frame.planes[0]
+            gray_data = np.frombuffer(y_plane, np.uint8)
+            img_np = gray_data.reshape(y_plane.height, y_plane.line_size, 1)
+            img_np = img_np[:, : frame.width]
 
-def get_video_frames(recording_path: pathlib.Path):
-    container = av.open(str(recording_path / "Neon Sensor Module v1 ps1.mp4"))
-    all_frames = []
+            all_frames.append(img_np[:, :, 0])
 
-    for frame in container.decode(video=0):
-        y_plane = frame.planes[0]
-        gray_data = np.frombuffer(y_plane, np.uint8)
-        img_np = gray_data.reshape(y_plane.height, y_plane.line_size, 1)
-        img_np = img_np[:, : frame.width]
+        all_frames = np.array(all_frames)
+        left_eye_images = all_frames[:, :, 0:192]
+        right_eye_images = all_frames[:, :, 192:]
 
-        all_frames.append(img_np[:, :, 0])
+        timestamps = np.fromfile(
+            recording_path / "Neon Sensor Module v1 ps1.time", dtype=np.int64
+        )
 
-    all_frames = np.array(all_frames)
-    left_eye_images = all_frames[:, :, 0:192]
-    right_eye_images = all_frames[:, :, 192:]
+    else:
+        # not implemented yet
+        raise NotImplementedError
 
-    return left_eye_images, right_eye_images
-
-
-def generate_animation(
-    left_eye_images: np.ndarray,
-    right_eye_images: np.ndarray,
-    indices: np.ndarray = None,
-):
-    fig, axs = plt.subplots(1, 1)
-    fig.set_size_inches(8, 6)
-
-    eye_images = np.concatenate((left_eye_images, right_eye_images), axis=2)
-
-    if indices is not None:
-        eye_images[np.where(indices == 1)[0], 29:35, 61:67] = 255
-
-    im0 = axs.imshow(eye_images[0, :, :], cmap="gray")
-    axs.axis("off")
-
-    plt.close()
-
-    def init():
-        im0.set_data(eye_images[0, :, :])
-
-    def animate(frame):
-        im0.set_data(eye_images[frame, :, :])
-
-        return im0
-
-    anim = animation.FuncAnimation(
-        fig, animate, init_func=init, frames=eye_images.shape[0], interval=5
-    )
-
-    return anim
+    return left_eye_images, right_eye_images, timestamps
 
 
 def get_recording_family(recording):
@@ -304,6 +296,7 @@ def video_stream(device, is_neon: bool = False):
 
 
 def create_patch(ax, i, start, end, y, color):
+    """Creates a patch for the event array plot."""
     height = 0.5
     patch = Rectangle((start, y), end - start, height, color=color)
     ax.add_patch(patch)
@@ -341,9 +334,7 @@ def create_subplot(ax, start_times, end_times, start, end):
     adjust_axis(ax, start, end)
 
 
-def visualize_blink_events(
-    recording_path, blink_events, max_duration, subplot_duration=20
-):
+def visualize_blink_events(blink_events, timestamps, max_duration, subplot_duration=20):
     """Visualize blink events in a recording, with each subplot showing a 20 second window per default (can be adjusted).
 
     Parameters
@@ -357,14 +348,15 @@ def visualize_blink_events(
     """
 
     sns.set()
-    ts = get_timestamps(pathlib.Path(recording_path))
 
     start_times = [
-        (blink_event.start_time - ts[0]) / 1e9 for blink_event in blink_events
+        (blink_event.start_time - timestamps[0]) / 1e9 for blink_event in blink_events
     ]
-    end_times = [(blink_event.end_time - ts[0]) / 1e9 for blink_event in blink_events]
+    end_times = [
+        (blink_event.end_time - timestamps[0]) / 1e9 for blink_event in blink_events
+    ]
 
-    recording_duration = np.ceil(len(ts) / 200)
+    recording_duration = np.ceil(len(timestamps) / 200)
     # find which is smaller: the recording duration or the max_duration
     recording_duration = min(recording_duration, max_duration)
 
@@ -383,7 +375,7 @@ def visualize_blink_events(
             ax[i], start_times, end_times, start_of_interval, end_of_interval
         )
 
-    end_of_recording = (ts[-1] - ts[0]) / 1e9
+    end_of_recording = (timestamps[-1] - timestamps[0]) / 1e9
     ax[-1].axvline(x=end_of_recording, color="black")
     # write the end of the recording
     ax[-1].text(

@@ -18,12 +18,12 @@ from .helper import (
 )
 
 
-# clf_path = Path(__file__).resolve().parent / "weights/xgb_neon.json"
-
-from blink_detector.helper import process_recording
-
-
-def blink_detection_pipeline(recording_path: Path, is_neon: bool) -> T.List:
+def blink_detection_pipeline(
+    left_eye_images: np.ndarray,
+    right_eye_images: np.ndarray,
+    timestamps: np.ndarray,
+    is_neon: bool = True,
+) -> T.List:
     """Pipeline for blink detection.
 
     Args:
@@ -43,20 +43,17 @@ def blink_detection_pipeline(recording_path: Path, is_neon: bool) -> T.List:
         List of blink events.
     """
 
-    left_eye_images, right_eye_images, timestamps = process_recording(
-        recording_path, is_neon=is_neon
-    )
-
     # get default optical flow parameters
     of_params = OfParams()
 
     # get default post processing parameters
     pp_params = PPParams()
 
+    # create grid for optical flow calculation
     grid = create_grid(of_params.img_shape, of_params.grid_size)
 
     # load classifier
-    clf_path = get_clf_path(is_neon=True)
+    clf_path = get_clf_path(is_neon=is_neon)
     clf = get_classifier(clf_path)
 
     images_timestamps = zip(zip(left_eye_images, right_eye_images), timestamps)
@@ -328,4 +325,15 @@ def extract_blink_events(
                 > pp_params.short_event_min_len_s
             )
         ):
-            yield BlinkEvent(event1.start_time, event2.end_time, "blink")
+            eyelid_closing_duration_s = (event1.end_time - event1.start_time) / 1e9
+            eyelid_opening_duration_s = (event2.end_time - event2.start_time) / 1e9
+            blink_duration_s = (event2.end_time - event1.start_time) / 1e9
+
+            yield BlinkEvent(
+                event1.start_time,
+                event2.end_time,
+                "blink",
+                blink_duration_s,
+                eyelid_closing_duration_s,
+                eyelid_opening_duration_s,
+            )
