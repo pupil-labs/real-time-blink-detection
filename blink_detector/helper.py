@@ -202,8 +202,12 @@ def get_classifier(is_neon: bool):
 
     clf_path = get_clf_path(is_neon)
 
-    clf = XGBClassifier()
-    clf.load_model(clf_path)
+    import joblib
+
+    clf = joblib.load("blink_detector/weights/xgb_neon_171.sav")
+
+    # clf = XGBClassifier()
+    # clf.load_model(clf_path)
 
     return clf
 
