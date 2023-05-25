@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 from matplotlib.patches import Rectangle
 import seaborn as sns
+from itertools import tee
 
 
 @dataclass
@@ -100,10 +101,9 @@ class PPParams:
     proba_offset_threshold: float = 0.25
 
 
-def process_recording(recording_path: pathlib.Path, is_neon: bool = False):
+def process_recording(recording_path: pathlib.Path, is_neon: bool = True):
     recording_path = pathlib.Path(recording_path)
 
-    # get_video_frames_and_timestamps
     left_images, right_images, timestamps = get_video_frames_and_timestamps(
         recording_path=recording_path, is_neon=is_neon
     )
@@ -181,7 +181,7 @@ def get_recording_family(recording_path: pathlib.Path):
     return rec.family == "neon"
 
 
-def get_clf_path(is_neon: bool):
+def get_clf_path(is_neon: bool = True):
     """Returns the path to the classifier."""
     if is_neon:
         clf_path = (
@@ -197,17 +197,17 @@ def get_clf_path(is_neon: bool):
     return clf_path
 
 
-def get_classifier(is_neon: bool):
+def get_classifier(is_neon: bool = True):
     """Returns the path to the classifier."""
 
     clf_path = get_clf_path(is_neon)
 
-    import joblib
+    # import joblib
 
-    clf = joblib.load("blink_detector/weights/xgb_neon_171.sav")
+    # clf = joblib.load("blink_detector/weights/xgb_neon_171.sav")
 
-    # clf = XGBClassifier()
-    # clf.load_model(clf_path)
+    clf = XGBClassifier()
+    clf.load_model(clf_path)
 
     return clf
 
@@ -247,7 +247,7 @@ def preprocess_frames(
         )
 
 
-def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool):
+def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool = True):
     if is_neon:
         container = av.open(str(recording_path / "Neon Sensor Module v1 ps1.mp4"))
         all_frames = []
@@ -289,7 +289,7 @@ def get_recording_family(recording):
     return is_neon
 
 
-def video_stream(device, is_neon: bool = False):
+def video_stream(device, is_neon: bool = True):
     while True:
         bgr_pixels, frame_datetime = device.receive_eyes_video_frame()
 
@@ -297,6 +297,18 @@ def video_stream(device, is_neon: bool = False):
         right_images = preprocess_frames(bgr_pixels[:, 192:, 0], is_neon=is_neon)
 
         yield left_images, right_images, frame_datetime
+
+
+def stream_images_and_timestamps(device, is_neon: bool = True):
+    stream_left, stream_right, stream_ts = tee(video_stream(device, is_neon=is_neon), 3)
+
+    left_images = (left for left, _, _ in stream_left)
+    right_images = (right for _, right, _ in stream_right)
+
+    # timestamps need to be converted to ns
+    timestamps = (1e9 * timestamp for _, _, timestamp in stream_ts)
+
+    return left_images, right_images, timestamps
 
 
 def create_patch(ax, i, start, end, y, color):
@@ -332,13 +344,15 @@ def adjust_axis(ax, start, end):
     ax.set_xticklabels(np.arange(start, end, 5).astype(int))
 
 
-def create_subplot(ax, start_times, end_times, start, end):
-    render_event_array(ax, start_times, end_times, 0.2, color=[0.2, 0.8, 0.4])
+def create_subplot(ax, start_times, end_times, start, end, color):
+    render_event_array(ax, start_times, end_times, 0.2, color=color)
     ax.set_xlim(start, end)
     adjust_axis(ax, start, end)
 
 
-def visualize_blink_events(blink_events, timestamps, max_duration, subplot_duration=20):
+def visualize_blink_events(
+    blink_events, timestamps, max_duration, subplot_duration=20, color=[0.2, 0.8, 0.4]
+):
     """Visualize blink events in a recording, with each subplot showing a 20 second window per default (can be adjusted).
 
     Parameters
@@ -376,7 +390,7 @@ def visualize_blink_events(blink_events, timestamps, max_duration, subplot_durat
 
     for i, (start_of_interval, end_of_interval) in enumerate(time_intervals):
         create_subplot(
-            ax[i], start_times, end_times, start_of_interval, end_of_interval
+            ax[i], start_times, end_times, start_of_interval, end_of_interval, color
         )
 
     end_of_recording = (timestamps[-1] - timestamps[0]) / 1e9
