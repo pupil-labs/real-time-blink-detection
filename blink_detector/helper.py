@@ -12,6 +12,10 @@ from matplotlib import animation
 from matplotlib.patches import Rectangle
 import seaborn as sns
 from itertools import tee
+from pikit import Recording
+import pylab as plt
+from IPython import display
+import time
 
 
 @dataclass
@@ -163,22 +167,22 @@ def pairwise(iterable):
     return zip(a, b)
 
 
-def get_recording_family(recording_path: pathlib.Path):
-    """Checks if the recording is a Neon or Invisible recording.
+# def get_recording_family(recording_path: pathlib.Path):
+#     """Checks if the recording is a Neon or Invisible recording.
 
-    Args:
-    -------
-    recording_path : pathlib.Path
-        Path to the recording.
+#     Args:
+#     -------
+#     recording_path : pathlib.Path
+#         Path to the recording.
 
-    Returns:
-    -------
-    bool
-        True if the recording is a Neon recording.
-    """
+#     Returns:
+#     -------
+#     bool
+#         True if the recording is a Neon recording.
+#     """
 
-    rec = pikit.Recording(recording_path)
-    return rec.family == "neon"
+#     rec = pikit.Recording(recording_path)
+#     return rec.family == "neon"
 
 
 def get_clf_path(is_neon: bool = True):
@@ -201,11 +205,6 @@ def get_classifier(is_neon: bool = True):
     """Returns the path to the classifier."""
 
     clf_path = get_clf_path(is_neon)
-
-    # import joblib
-
-    # clf = joblib.load("blink_detector/weights/xgb_neon_171.sav")
-
     clf = XGBClassifier()
     clf.load_model(clf_path)
 
@@ -215,10 +214,7 @@ def get_classifier(is_neon: bool = True):
 import numpy as np
 
 
-def preprocess_frames(
-    eye_images: np.ndarray,
-    is_neon: bool = True,
-):
+def preprocess_frames(eye_images: np.ndarray, is_neon: bool = True):
     """Preprocesses frames from left and right eye depending on the type of recording type (Neon or Invisible)."""
 
     if eye_images.ndim == 2:
@@ -269,7 +265,10 @@ def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool 
         )
 
     else:
-        # not implemented yet
+        # recording = Recording(recording_path)
+        # timestamps, left_images, right_images = decode_frames(
+        #     recording, min_s=60, max_s=90
+        # )
         raise NotImplementedError
 
     return left_eye_images, right_eye_images, timestamps
@@ -409,3 +408,37 @@ def visualize_blink_events(
 
     ax[-1].set_xlabel("Elapsed time since start of recording [in s]")
     plt.show()
+
+
+def compute_blink_rate(blink_counter, elapsed_time):
+    return blink_counter / elapsed_time
+
+
+def update_array(arr, new_val):
+    arr = np.roll(arr, 1)
+    arr[0] = new_val
+    return arr
+
+
+def plot_blink_rate(all_times, total_blink_rate, last_30s_blink_rate):
+    plt.clf()
+    plt.plot(
+        all_times,
+        total_blink_rate,
+        ls="-",
+        color=[0.2, 0.2, 0.4],
+        label="Blink rate (Since beginning)",
+    )
+    plt.plot(
+        all_times,
+        last_30s_blink_rate,
+        ls="-",
+        color=[0.9, 0.1, 0.1],
+        label="Blink rate (Last 30s)",
+    )
+    plt.xlabel("Elapsed time [in s]")
+    plt.ylabel("Blink rate [in Hz]")
+    plt.grid(visible=True)
+    plt.legend(loc="lower right")
+    display.clear_output(wait=True)
+    display.display(plt.gcf())
