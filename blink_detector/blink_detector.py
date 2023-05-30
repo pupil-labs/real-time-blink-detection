@@ -341,20 +341,3 @@ def extract_blink_events(
                 eyelid_closing_duration_s,
                 eyelid_opening_duration_s,
             )
-
-
-def successive_blink_detector(n_successive_blinks=3, time_interval=1.0):
-    prev_blink_times = np.zeros(n_successive_blinks)
-
-    def detect_successive_blinks(blink_events):
-        nonlocal prev_blink_times
-
-        prev_blink_times = np.roll(prev_blink_times, 1)
-        prev_blink_times[0] = blink_events.start_time / 1e9
-
-        if prev_blink_times[0] - prev_blink_times[-1] < time_interval:
-            return True
-        else:
-            return False
-
-    return detect_successive_blinks
