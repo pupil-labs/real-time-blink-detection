@@ -8,14 +8,11 @@ import cv2
 import av
 from xgboost import XGBClassifier
 from matplotlib import pyplot as plt
-from matplotlib import animation
 from matplotlib.patches import Rectangle
 import seaborn as sns
 from itertools import tee
-from pikit import Recording
 import pylab as plt
 from IPython import display
-import time
 import seaborn as sns
 
 sns.set()
@@ -168,24 +165,6 @@ def pairwise(iterable):
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
-
-
-# def get_recording_family(recording_path: pathlib.Path):
-#     """Checks if the recording is a Neon or Invisible recording.
-
-#     Args:
-#     -------
-#     recording_path : pathlib.Path
-#         Path to the recording.
-
-#     Returns:
-#     -------
-#     bool
-#         True if the recording is a Neon recording.
-#     """
-
-#     rec = pikit.Recording(recording_path)
-#     return rec.family == "neon"
 
 
 def get_clf_path(is_neon: bool = True):
