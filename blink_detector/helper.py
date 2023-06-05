@@ -16,6 +16,9 @@ from pikit import Recording
 import pylab as plt
 from IPython import display
 import time
+import seaborn as sns
+
+sns.set()
 
 
 @dataclass
@@ -422,23 +425,25 @@ def update_array(arr, new_val):
 
 def plot_blink_rate(all_times, total_blink_rate, last_30s_blink_rate):
     plt.clf()
-    plt.plot(
-        all_times,
-        total_blink_rate,
-        ls="-",
-        color=[0.2, 0.2, 0.4],
-        label="Blink rate (Since beginning)",
+    # plot total blink rate as line
+    plt.hlines(
+        y=total_blink_rate[0],
+        xmin=all_times[-1],
+        xmax=all_times[0],
+        ls="--",
+        color=[0.6, 0.6, 0.6],
+        label="Overall blink rate)",
     )
     plt.plot(
         all_times,
         last_30s_blink_rate,
         ls="-",
-        color=[0.9, 0.1, 0.1],
-        label="Blink rate (Last 30s)",
+        color=[0.1, 0.1, 0.4],
+        label="Blink rate (last 30s)",
     )
-    plt.xlabel("Elapsed time [in s]")
-    plt.ylabel("Blink rate [in Hz]")
+    plt.xlabel("Elapsed time [in s]", fontsize=10)
+    plt.ylabel("Blink rate [in Hz]", fontsize=10)
     plt.grid(visible=True)
-    plt.legend(loc="lower right")
+    plt.legend(loc="lower right", fontsize=10)
     display.clear_output(wait=True)
     display.display(plt.gcf())
