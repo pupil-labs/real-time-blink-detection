@@ -1,0 +1,7 @@
+numpy
+pupil-labs-realtime-api
+nest-asyncio
+opencv-python
+av
+xgboost
+seaborn
