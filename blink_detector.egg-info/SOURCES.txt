@@ -1,9 +1,0 @@
-setup.py
-blink_detector/__init__.py
-blink_detector/blink_detector.py
-blink_detector/helper.py
-blink_detector.egg-info/PKG-INFO
-blink_detector.egg-info/SOURCES.txt
-blink_detector.egg-info/dependency_links.txt
-blink_detector.egg-info/requires.txt
-blink_detector.egg-info/top_level.txt
