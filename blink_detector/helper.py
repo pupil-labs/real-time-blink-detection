@@ -105,7 +105,7 @@ class PPParams:
     proba_offset_threshold: float = 0.25
 
 
-def process_recording(recording_path: pathlib.Path, is_neon: bool = True):
+def preprocess_recording(recording_path: pathlib.Path, is_neon: bool = True):
     recording_path = pathlib.Path(recording_path)
 
     left_images, right_images, timestamps = get_video_frames_and_timestamps(
