@@ -1,15 +1,16 @@
 from dataclasses import dataclass
-import typing as T
-import numpy as np
-from itertools import chain
-from itertools import tee
+from itertools import chain, tee
 import pathlib
+import typing as T
+
 import av
-from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import numpy as np
 import seaborn as sns
-from itertools import tee
+
 from IPython import display
+
 
 sns.set()
 
