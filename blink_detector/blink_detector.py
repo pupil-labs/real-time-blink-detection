@@ -4,7 +4,6 @@ import typing as T
 import cv2
 import numpy as np
 from more_itertools import convolve, windowed
-from xgboost import XGBClassifier
 
 from .helper import (
     BlinkEvent,

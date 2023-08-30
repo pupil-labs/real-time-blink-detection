@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 import seaborn as sns
+import cv2
+from xgboost import XGBClassifier
 
 from IPython import display
 
@@ -190,9 +192,6 @@ def get_classifier(is_neon: bool = True):
     return clf
 
 
-import numpy as np
-
-
 def preprocess_frames(eye_images: np.ndarray, is_neon: bool = True):
     """Preprocesses frames from left and right eye depending on the type of recording type (Neon or Invisible)."""
 
@@ -329,18 +328,29 @@ def create_subplot(ax, start_times, end_times, start, end, color):
 
 
 def visualize_blink_events(
-    blink_events, timestamps, max_duration, subplot_duration=20, color=[0.2, 0.8, 0.4]
+    blink_events,
+    timestamps,
+    start_interval,
+    end_interval,
+    subplot_duration=20,
+    color=[0.2, 0.8, 0.4],
 ):
-    """Visualize blink events in a recording, with each subplot showing a 20 second window per default (can be adjusted).
+    """Visualize blink events in a recording, with each subplot showing a 20-second window by default (can be adjusted).
 
     Parameters
     ----------
-    recording_path : pathlib.Path
-        Path to recording
     blink_events : list
         List of blink events
+    timestamps : list
+        List of timestamps corresponding to the blink events
+    start_interval : float
+        Start time of the interval to be plotted in seconds
+    end_interval : float
+        End time of the interval to be plotted in seconds
     subplot_duration : float
         Duration of each subplot in seconds
+    color : list
+        Color for the events
     """
 
     sns.set()
@@ -352,18 +362,26 @@ def visualize_blink_events(
         (blink_event.end_time - timestamps[0]) / 1e9 for blink_event in blink_events
     ]
 
-    recording_duration = np.ceil(len(timestamps) / 200)
-    # find which is smaller: the recording duration or the max_duration
-    recording_duration = min(recording_duration, max_duration)
+    end_of_recording = (timestamps[-1] - timestamps[0]) / 1e9
+
+    if end_interval > end_of_recording:
+        print(
+            f"User-defined end_interval exceeds recording duration. Setting end_interval to {end_of_recording}."
+        )
+        end_interval = end_of_recording
 
     subplot_duration = subplot_duration + 0.001
-    num_subplots = int(np.ceil(recording_duration / subplot_duration))
+    num_subplots = int(np.ceil((end_interval - start_interval) / subplot_duration))
 
     f, ax = plt.subplots(num_subplots, 1)
     f.set_size_inches(20, 20 * num_subplots / 20)
 
     time_intervals = [
-        (i * subplot_duration, (i + 1) * subplot_duration) for i in range(num_subplots)
+        (
+            start_interval + i * subplot_duration,
+            start_interval + (i + 1) * subplot_duration,
+        )
+        for i in range(num_subplots)
     ]
 
     for i, (start_of_interval, end_of_interval) in enumerate(time_intervals):
@@ -371,19 +389,18 @@ def visualize_blink_events(
             ax[i], start_times, end_times, start_of_interval, end_of_interval, color
         )
 
-    end_of_recording = (timestamps[-1] - timestamps[0]) / 1e9
-    ax[-1].axvline(x=end_of_recording, color="black")
-    # write the end of the recording
-    ax[-1].text(
-        end_of_recording + 0.1,
-        0.5,
-        "End of recording",
-        horizontalalignment="left",
-        verticalalignment="center",
-        fontsize=10,
-        color="black",
-        clip_on=True,
-    )
+    if end_of_recording <= end_interval:
+        ax[-1].axvline(x=end_of_recording, color="black")
+        ax[-1].text(
+            end_of_recording + 0.1,
+            0.5,
+            "End of recording",
+            horizontalalignment="left",
+            verticalalignment="center",
+            fontsize=10,
+            color="black",
+            clip_on=True,
+        )
 
     ax[-1].set_xlabel("Elapsed time since start of recording [in s]")
     plt.show()
