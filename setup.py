@@ -16,5 +16,6 @@ setup(
         "xgboost",
         "seaborn",
         "more_itertools",
+        "IPython",
     ],
 )
