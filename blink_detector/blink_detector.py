@@ -14,6 +14,7 @@ from .helper import (
     pairwise,
     get_classifier,
     get_clf_path,
+    XGBClassifier
 )
 
 
