@@ -8,7 +8,7 @@ as well as real-time blink detection utilizing <a href=https://github.com/pupil-
 In order to install the package, you can simply run the following command from the terminal:
 
 ```bash
-pip install "git+https://github.com/pupil-labs/real-time-blink-detection.git"
+git clone https://github.com/pupil-labs/real-time-blink-detection.git
 ```
 
 # Using the package
