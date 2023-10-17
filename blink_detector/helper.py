@@ -10,9 +10,11 @@ import numpy as np
 import seaborn as sns
 import cv2
 from xgboost import XGBClassifier
-
+from pikit import Recording
 from IPython import display
-
+from pikit import Recording
+from pikit.lib.sensors import MAX_TIMESTAMP, VideoFrame
+from pikit.lib.tools.matcher import Matcher, MatchingMethod
 
 sns.set()
 
@@ -241,29 +243,48 @@ def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool 
         timestamps = np.fromfile(
             recording_path / "Neon Sensor Module v1 ps1.time", dtype=np.int64
         )
-
     else:
-        # recording = Recording(recording_path)
-        # timestamps, left_images, right_images = decode_frames(
-        #     recording, min_s=60, max_s=90
-        # )
-        raise NotImplementedError
+        # if recording was made with Pupil Invisible, run this routine
+        recording = Recording(recording_path)
+        timestamps, left_eye_images, right_eye_images = decode_frames(recording)
 
     return left_eye_images, right_eye_images, timestamps
 
+def get_gray(frame: VideoFrame):
+    return frame.av_frame.to_ndarray(format="gray")
 
-def get_recording_family(recording):
-    is_neon = (recording.data_format_version or "").startswith("2.")
-    is_pi = (recording.data_format_version or "1.").startswith("1.")
+def decode_frames(
+    recording: Recording, min_s=None, max_s=None, max_time_difference_ns=1e9 / 200
+) -> T.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    min_timestamp = 0 if min_s is None else recording.timestamp_at_offset(seconds=min_s)
+    max_timestamp = (
+        MAX_TIMESTAMP if max_s is None else recording.timestamp_at_offset(seconds=max_s)
+    )
+    left_frames = recording.eye_left.read(min_timestamp, max_timestamp)
+    right_frames = recording.eye_right.read(min_timestamp, max_timestamp)
+    matcher = Matcher(
+        base_stream=left_frames,
+        data_streams=[right_frames],
+        method=MatchingMethod.CLOSEST,
+    )
 
-    if is_neon:
-        is_neon = True
-    elif is_pi:
-        is_neon = False
-    else:
-        raise ValueError("Unknown recording family")
+    left_images, right_images = [], []
+    timestamps = []
+    for match in matcher():
+        frames = match.matches[0]
+        if frames:
+            left_frame = match.base_sample
+            right_frame = frames[0]
+            left_ts = left_frame.timestamp.timestamp
+            right_ts = right_frame.timestamp.timestamp
+            if abs(left_ts - right_ts) <= max_time_difference_ns:
+                left_images.append(get_gray(left_frame))
+                right_images.append(get_gray(right_frame))
+                timestamps.append(left_ts)
 
-    return is_neon
+    n_frames = len(timestamps)
+
+    return np.array(timestamps), np.array(left_images), np.array(right_images)
 
 
 def video_stream(device, is_neon: bool = True):
@@ -274,7 +295,7 @@ def video_stream(device, is_neon: bool = True):
         right_images = preprocess_frames(bgr_pixels[:, 192:, 0], is_neon=is_neon)
 
         yield left_images, right_images, frame_datetime
-
+ 
 
 def stream_images_and_timestamps(device, is_neon: bool = True):
     stream_left, stream_right, stream_ts = tee(video_stream(device, is_neon=is_neon), 3)
