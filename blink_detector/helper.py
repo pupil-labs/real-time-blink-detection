@@ -295,7 +295,7 @@ def video_stream(device, is_neon: bool = True):
         right_images = preprocess_frames(bgr_pixels[:, 192:, 0], is_neon=is_neon)
 
         yield left_images, right_images, frame_datetime
- 
+
 
 def stream_images_and_timestamps(device, is_neon: bool = True):
     stream_left, stream_right, stream_ts = tee(video_stream(device, is_neon=is_neon), 3)
