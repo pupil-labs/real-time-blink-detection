@@ -210,17 +210,20 @@ def preprocess_frames(eye_images: np.ndarray, is_neon: bool = True):
             )
         )
     else:
-        return np.squeeze(
-            np.array(
-                [
-                    cv2.rotate(
-                        cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA),
-                        cv2.ROTATE_90_COUNTERCLOCKWISE,
-                    )
-                    for frame in eye_images
-                ]
-            )
+        raise NotImplementedError(
+            "Reading video frames currently only works for Neon."
         )
+        # return np.squeeze(
+        #     np.array(
+        #         [
+        #             cv2.rotate(
+        #                 cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA),
+        #                 cv2.ROTATE_90_COUNTERCLOCKWISE,
+        #             )
+        #             for frame in eye_images
+        #         ]
+        #     )
+        # )
 
 
 def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool = True):
@@ -244,48 +247,11 @@ def get_video_frames_and_timestamps(recording_path: pathlib.Path, is_neon: bool 
             recording_path / "Neon Sensor Module v1 ps1.time", dtype=np.int64
         )
     else:
-        # if recording was made with Pupil Invisible, run this routine
-        recording = Recording(recording_path)
-        timestamps, left_eye_images, right_eye_images = decode_frames(recording)
+        raise NotImplementedError(
+            "Reading video frames currently only works for Neon."
+        )
 
     return left_eye_images, right_eye_images, timestamps
-
-def get_gray(frame: VideoFrame):
-    return frame.av_frame.to_ndarray(format="gray")
-
-def decode_frames(
-    recording: Recording, min_s=None, max_s=None, max_time_difference_ns=1e9 / 200
-) -> T.Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    min_timestamp = 0 if min_s is None else recording.timestamp_at_offset(seconds=min_s)
-    max_timestamp = (
-        MAX_TIMESTAMP if max_s is None else recording.timestamp_at_offset(seconds=max_s)
-    )
-    left_frames = recording.eye_left.read(min_timestamp, max_timestamp)
-    right_frames = recording.eye_right.read(min_timestamp, max_timestamp)
-    matcher = Matcher(
-        base_stream=left_frames,
-        data_streams=[right_frames],
-        method=MatchingMethod.CLOSEST,
-    )
-
-    left_images, right_images = [], []
-    timestamps = []
-    for match in matcher():
-        frames = match.matches[0]
-        if frames:
-            left_frame = match.base_sample
-            right_frame = frames[0]
-            left_ts = left_frame.timestamp.timestamp
-            right_ts = right_frame.timestamp.timestamp
-            if abs(left_ts - right_ts) <= max_time_difference_ns:
-                left_images.append(get_gray(left_frame))
-                right_images.append(get_gray(right_frame))
-                timestamps.append(left_ts)
-
-    n_frames = len(timestamps)
-
-    return np.array(timestamps), np.array(left_images), np.array(right_images)
-
 
 def video_stream(device, is_neon: bool = True):
   
