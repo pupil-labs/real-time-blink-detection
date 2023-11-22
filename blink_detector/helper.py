@@ -195,7 +195,7 @@ def get_classifier(is_neon: bool = True):
 
 
 def preprocess_frames(eye_images: np.ndarray, is_neon: bool = True):
-    """Preprocesses frames from left and right eye depending on the type of recording type (Neon or Invisible)."""
+    """Preprocesses frames from left and right eye depending on the type of recording type."""
 
     if eye_images.ndim == 2:
         eye_images = np.expand_dims(eye_images, axis=0)
