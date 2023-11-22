@@ -106,17 +106,20 @@ class PPParams:
     proba_offset_threshold: float = 0.25
 
 
-def preprocess_recording(recording_path: pathlib.Path, is_neon: bool = True):
+def preprocess_recording(recording_path: pathlib.Path, is_neon: bool = True, keep_orig_images: bool = False):
     recording_path = pathlib.Path(recording_path)
 
-    left_images, right_images, timestamps = get_video_frames_and_timestamps(
+    left_images_192, right_images_192, timestamps = get_video_frames_and_timestamps(
         recording_path=recording_path, is_neon=is_neon
     )
 
-    left_images = np.array(list(preprocess_frames(left_images, is_neon)))
-    right_images = np.array(list(preprocess_frames(right_images, is_neon)))
+    left_images = np.array(list(preprocess_frames(left_images_192, is_neon)))
+    right_images = np.array(list(preprocess_frames(right_images_192, is_neon)))
 
-    return left_images, right_images, timestamps
+    if not keep_orig_images:
+        return left_images, right_images, timestamps
+    else:
+        return left_images, right_images, timestamps, left_images_192, right_images_192
 
 
 def create_grid(img_shape: T.Tuple[int, int], grid_size: int) -> np.ndarray:
@@ -288,6 +291,7 @@ def decode_frames(
 
 
 def video_stream(device, is_neon: bool = True):
+  
     while True:
         bgr_pixels, frame_datetime = device.receive_eyes_video_frame()
 
@@ -298,6 +302,12 @@ def video_stream(device, is_neon: bool = True):
 
 
 def stream_images_and_timestamps(device, is_neon: bool = True):
+
+    if not is_neon:
+        raise NotImplementedError(
+            "Streaming eye images currently only works for Neon."
+        )
+    
     stream_left, stream_right, stream_ts = tee(video_stream(device, is_neon=is_neon), 3)
 
     left_images = (left for left, _, _ in stream_left)
