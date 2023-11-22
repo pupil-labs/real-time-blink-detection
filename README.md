@@ -3,7 +3,7 @@
 This package will allow you to perform blink detection in recordings made with Pupil Invisible and Neon. The package contains code both for posthoc blink detection (i.e., outside of Pupil Cloud) on existing recordings 
 as well as real-time blink detection utilizing <a href="https://github.com/pupil-labs/realtime-python-api"/>Pupil Labs' Realtime Python API</a>.
 
-If you are interested in learning about the technical details of Pupil Lab's blink detector, feel free to check out our <a href=" https://assets.pupil-labs.com/pdf/Pupil_Labs_Blink_Detector.pdf">white paper</a>.
+If you are interested in learning about the technical details of Pupil Lab's blink detector, feel free to check out our <a href="https://assets.pupil-labs.com/pdf/Pupil_Labs_Blink_Detector.pdf">white paper</a>.
 
 # Installing the package
 
