@@ -12,9 +12,6 @@ import cv2
 from xgboost import XGBClassifier
 from pikit import Recording
 from IPython import display
-from pikit import Recording
-from pikit.lib.sensors import MAX_TIMESTAMP, VideoFrame
-from pikit.lib.tools.matcher import Matcher, MatchingMethod
 
 sns.set()
 
