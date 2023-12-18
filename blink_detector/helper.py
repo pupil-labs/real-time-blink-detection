@@ -10,7 +10,6 @@ import numpy as np
 import seaborn as sns
 import cv2
 from xgboost import XGBClassifier
-from pikit import Recording
 from IPython import display
 
 sns.set()
