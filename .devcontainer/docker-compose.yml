@@ -1,0 +1,22 @@
+version: '3.6'
+services:
+
+  python3:
+    container_name: blink_detection_dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    network_mode: host
+    ipc: host
+    privileged: true
+    volumes:
+      # Mount the root folder that contains .git
+      - ..:/blink_detection
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev:/dev
+    command: /bin/bash -c "while sleep 1000; do :; done"
+    restart: no
+    environment:
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XDG_RUNTIME_DIR=/tmp/.X11-unix
