@@ -2,3 +2,4 @@ build
 blink_detector.eeg-info
 *.json
 .vscode
+*.eeg-info
