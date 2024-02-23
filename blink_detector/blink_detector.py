@@ -227,9 +227,9 @@ def thresholding(
     """
 
     p, ts = p_ts
-    if p[1] > pp_params.proba_onset_threshold:
+    if (p[1] > pp_params.proba_onset_threshold) and (p[1] > p[2]):
         return "onset", ts
-    if p[2] > pp_params.proba_offset_threshold:
+    if (p[2] > pp_params.proba_offset_threshold) and (p[2] > p[1]):
         return "offset", ts
     else:
         return "background", ts
