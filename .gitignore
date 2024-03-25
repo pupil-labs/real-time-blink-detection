@@ -1,4 +1,5 @@
 build
-blink_detector.eeg-info
+blink_detector.egg-info
 *.json
 .vscode
+*.eeg-info
